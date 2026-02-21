@@ -2,46 +2,48 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    # --- שינוי בונוס: הוספנו האזנה גם לענף dev ---
+    branches: [ "main", "dev" ] 
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Checkout the code
+    # --- שינוי בונוס: קיבוע גרסה ל-v4 (Pinning) במקום main ---
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. Set up Python
+    # --- שינוי בונוס: קיבוע גרסה ל-v5 ---
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
 
-    # 3. Install dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # 4. Run tests (דרישה מ-Part 1+2)
     - name: Run tests
       run: |
         python test_app.py
 
-    # 5. Login to Docker Hub (דרישה מ-Part 3 - נגדיר את ה-Secrets עוד רגע)
+    # --- שינוי בונוס: קיבוע גרסה ל-v3 ---
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # 6. Build and Push Docker image (דרישה לשימוש ב-SHA)
+    # --- שינוי בונוס: לוגיקת תיוג (Tagging) מבוססת ענף ---
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/flask-app:${{ github.sha }}
+          ${{ github.ref == 'refs/heads/main' && format('{0}/flask-app:prod-{1}', secrets.DOCKER_USERNAME, github.sha) || format('{0}/flask-app:dev-{1}', secrets.DOCKER_USERNAME, github.sha) }}
+        # ההסבר ללוגיקה למעלה:
+        # אם הענף הוא main -> צור תג prod-sha
+        # אחרת (בכל מקרה אחר, כמו ענף dev) -> צור תג dev-sha
